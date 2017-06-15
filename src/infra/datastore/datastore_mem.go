@@ -3,10 +3,9 @@ package datastore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
-
-	"github.com/pkg/errors"
 )
 
 type memDS struct {
