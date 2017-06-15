@@ -1,34 +1,67 @@
 package main
 
 import (
-	"net/http"
-	"os"
-
 	"fmt"
-	"handler"
 	"infra"
+	"infra/datastore"
+	"net/http"
 	"route"
 )
 
 func main() {
 
-	httproute := infra.NewHttpRouter()
+	fmt.Println("Hello world, I am veloroute39")
 
-	httproute.GET("/", hello)
+	//if !infra.IsGCloud() {
+	//	cr := filepath.Join("c:", "gcloud", "veloroute39-78759ec9aa23.json")
+	//	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", cr)
+	//}
+	//
+	//ds := NewDS()
+	ds := datastore.NewBoltDS()
+	err := ds.Open()
+	if err != nil {
+		panic(err)
+	}
+	defer ds.Close()
 
-	rs := route.NewRouteService(nil)
-	rh := handler.Route{HTTP: httproute, RouteService: rs}
-	rh.Setup()
+	rrs := route.NewRepository(ds)
+	rs := route.NewRouteService(rrs)
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "80"
+	rpc := infra.NewJSONRPCServer()
+	rpc.RegisterName("RouteService", rs)
+
+	r := infra.NewHttpRouter()
+
+	r.GET("/", hello)
+	r.GET("/_ah/health", health)
+	r.POST("/rpc", rpc.ServeHTTP)
+
+	port := "8080"
+	fmt.Println("Listening on port: ", port)
+	err = http.ListenAndServe(":"+port, r)
+	if err != nil {
+		fmt.Println("ListenAndServe err: ", err.Error())
 	}
 
-	fmt.Println("Server started :", port)
-	fmt.Println("error", http.ListenAndServe(":"+port, httproute).Error())
+	fmt.Println("veloroute39: Good Buy!!")
+}
+
+func NewDS() datastore.DataStore {
+	if !infra.IsGCloud() {
+		return datastore.NewBoltDS()
+	}
+	return nil
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello World, I am veloroute39, привет Женя, привет Валера")
+	fmt.Println("hello request")
+	fmt.Fprintln(w, "Hello World, I am veloroute39")
 }
+
+func health(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("health request")
+	fmt.Fprint(w, "ok")
+}
+
+//gcloud.cmd app deploy --project veloroute39
